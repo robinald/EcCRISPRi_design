@@ -1,0 +1,180 @@
+import time
+t1 = time.time()
+def read_CDS_fragments(filename):
+    CDS_list = []
+    CDS_pre_list = []
+    f = open("D:\\Python\\Codes\\output\\" + filename)
+    CDS_pre_list = f.readlines()
+    for i in CDS_pre_list:
+        t = i.split('\t')
+#       CDS_list = CDS_start, CDS_end, strand, fragment description
+        CDS_list.append([t[3], t[4], t[6], t[8][:-1]])
+    return CDS_list
+   
+def read_gRNAs(filename):
+    gRNA_list = []
+    gRNA_pre_list = []
+    f = open("D:\\Python\\Codes\\output2\\" + filename)
+    gRNA_pre_list = f.readlines()
+    for i in gRNA_pre_list:
+        t = i.split('\t')
+#       gRNA_list = gRNA_start, gRNA_end, strand, score, fragment description
+        gRNA_list.append([t[3], t[4], t[5], t[6], t[8][:-1]])
+    return gRNA_list
+
+def make_gRNA_dic(gRNA_list):
+    gRNA_dic = {}
+    for i in gRNA_list:
+        try:
+            temp = gRNA_dic[i[4]]
+            gRNA_dic[i[4]].append(i[0])
+        except:
+            gRNA_dic[i[4]] = [i[0]]
+#   gRNA_dic = 'fragment X/X; Gene_number: XXXX': ['gene start1', 'gene start2', ... , 'gene startX']
+    return gRNA_dic
+
+def assign_gRNA_fwd(CDS_list, gRNA_dic):
+    CDS_gRNA = []
+    for i in CDS_list:
+        try:
+            temp = gRNA_dic[i[3]]
+            CDS_gRNA.append([i[3], temp])
+        except:
+            CDS_gRNA.append([i[3], ['No gRNA']])
+    return CDS_gRNA
+
+def assign_gRNA_rev(CDS_list, gRNA_dic):
+    CDS_gRNA = []
+    for i in CDS_list:
+        try:
+            temp = gRNA_dic[i[3]]
+            CDS_gRNA.append([i[3], temp])
+        except:
+            CDS_gRNA.append([i[3], ['No gRNA']])
+    return CDS_gRNA
+
+
+def select_gRNA_fwd(CDS_gRNA):
+    one_for_one = []
+    for i in range(len(CDS_gRNA)):
+        if CDS_gRNA[i][1][0] == 'No gRNA':
+            if ' 1/' in CDS_gRNA[i][0]:
+                one_for_one.append([CDS_gRNA[i][0], 'No gRNA, no previous fragment in the same gene'])
+            else:
+                if len(CDS_gRNA[i-1][1]) == 1:
+                    one_for_one.append([CDS_gRNA[i][0], 'No gRNA, even in previous fragment'])
+                else:
+                    one_for_one.append([CDS_gRNA[i][0], CDS_gRNA[i-1][1][0]])
+        else:
+            one_for_one.append([CDS_gRNA[i][0], CDS_gRNA[i][1][-1]])
+        
+    return one_for_one
+
+def select_gRNA_rev(CDS_gRNA):
+    one_for_one = []
+    for i in range(len(CDS_gRNA)):
+        if CDS_gRNA[i][1][0] == 'No gRNA':
+            if '1/' in CDS_gRNA[i][0]:
+                one_for_one.append([CDS_gRNA[i][0], 'No gRNA, no previous fragment in the same gene'])
+            else:
+                if len(CDS_gRNA[i-1][1]) == 1:
+                    one_for_one.append([CDS_gRNA[i][0], 'No gRNA, even in previous fragment'])
+                else:
+                    one_for_one.append([CDS_gRNA[i][0], CDS_gRNA[i-1][1][0]])
+        else:
+            one_for_one.append([CDS_gRNA[i][0], CDS_gRNA[i][1][-1]])
+        #####################################     Editing     ########################### 
+    return one_for_one
+
+
+#print read_CDS_fragments('CDS_fragment_fwd.gff')[0]
+#print read_gRNAs('gRNA_in_fragment_fwd.gff')[0]
+
+gRNA_dic_fwd = {}
+CDS_list_fwd = read_CDS_fragments('CDS_fragment_fwd.gff')
+gRNA_list_fwd = read_gRNAs('gRNA_in_fragment_fwd.gff')
+
+gRNA_dic_fwd = make_gRNA_dic(gRNA_list_fwd)
+#print gRNA_dic
+CDS_gRNA_fwd = assign_gRNA_fwd(CDS_list_fwd, gRNA_dic_fwd)
+
+one_for_one_fwd = select_gRNA_fwd(CDS_gRNA_fwd)
+
+
+#print one_for_one_fwd[0:1000]
+#one_for_one = 'fragment 1/1; Gene_number: 1', 'gene start or no'
+
+#for i in one_for_one_fwd[0:10]:
+#    j = str(i).split(',')
+#for q in gRNA_list_fwd:
+#    if q[1] == j[1][2:-2]:
+#        return q[1], q[2], q[3]
+q1, q2, q3 = '', '', ''
+fwd = open("D:\\Python\\Codes\\output2\\selected_gRNA_fwd.gff", 'w')
+exc_fwd = open("D:\\Python\\Codes\\output2\\non-selected_fragments_fwd.txt", 'w')
+for i in one_for_one_fwd:
+    j = str(i).split(',')
+
+    if j[1][2:-2] == 'No gR':
+        exc_fwd.write(str(q) + '\n')
+    else:
+        for q in gRNA_list_fwd:
+    
+            try:
+                if int(q[0]) == int(j[1][2:-2]):
+                    q1, q2, q3 = q[1], q[2], q[3]
+                    break
+            except:
+                pass
+                #exc_fwd.write(str(q) + '\n')
+        fwd.write('NC_000913.3\tDH\tSelected_gRNA\t' + j[1][2:-2] + '\t' + str(q1) + '\t' + str(q2) + '\t+\t.\t' + str(j[0][2:-1]) + '\n')
+fwd.close()
+exc_fwd.close()
+
+
+gRNA_dic_rev = {}
+CDS_list_rev = read_CDS_fragments('CDS_fragment_rev.gff')
+gRNA_list_rev = read_gRNAs('gRNA_in_fragment_rev.gff')
+
+gRNA_dic_rev = make_gRNA_dic(gRNA_list_rev)
+#print gRNA_dic
+CDS_gRNA_rev = assign_gRNA_rev(CDS_list_rev, gRNA_dic_rev)
+#print CDS_gRNA[0:1000]
+one_for_one_rev = select_gRNA_rev(CDS_gRNA_rev)
+
+#print one_for_one[0:1000]
+#one_for_one = 'fragment 1/1; Gene_number: 1', 'gene start or no'
+
+#for i in one_for_one_fwd[0:10]:
+#    j = str(i).split(',')
+#for q in gRNA_list_fwd:
+#    if q[1] == j[1][2:-2]:
+#        return q[1], q[2], q[3]
+
+q1, q2, q3 = '', '', ''
+rev = open("D:\\Python\\Codes\\output2\\selected_gRNA_rev.gff", 'w')
+exc_rev = open("D:\\Python\\Codes\\output2\\non-selected_fragments_rev.txt", 'w')
+#print one_for_one_rev[0:10]
+for i in one_for_one_rev:
+    j = str(i).split(',')
+    if j[1][2:-2] == 'No gR':
+        exc_rev.write(str(q) + '\n')    
+    else:
+        for q in gRNA_list_rev:
+
+            try:
+                if int(q[0]) == int(j[1][2:-2]):
+                    q1, q2, q3 = q[1], q[2], q[3]
+                    #print q1, q2, q3
+                    break
+            except:
+                pass
+  
+        rev.write('NC_000913.3\tDH\tSelected_gRNA\t' + j[1][2:-2] + '\t' + str(q1) + '\t' + str(q2) + '\t-\t.\t' + str(j[0][2:-1]) + '\n')
+exc_rev.close()     
+rev.close()
+
+
+
+t2 = time.time()
+print "Time spent: " + str(t2-t1)
