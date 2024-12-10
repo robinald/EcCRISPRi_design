@@ -1,0 +1,93 @@
+import time
+t1 = time.time()
+def make_CDS_list(filename):
+    CDS_list_fwd = []
+    CDS_list_rev = []
+    CDS_prelist = []
+    t = []
+    CDS_ref = open("D:\\Python\\Codes\\" + filename)
+    CDS_prelist = CDS_ref.readlines()
+    for i in CDS_prelist:
+        t = i.split("\t")
+        if t[2][0] == '+':
+            CDS_list_fwd.append([int(t[0]), int(t[1]), t[2][0], t[3]])
+        else:
+            CDS_list_rev.append([int(t[0]), int(t[1]), t[2][0], t[3]])
+    return CDS_list_fwd, CDS_list_rev
+
+def fragment_number(CDS):
+    CDS_length = 0
+    fragment_number = 0
+    CDS_length = float(CDS[1]) - float(CDS[0]) + 1
+    fragment_number = int(CDS_length/100)
+    if float(fragment_number * 100) == CDS_length:
+        fragment_number -= 1
+    return [CDS[0], CDS[1], CDS[2], fragment_number+1, int(CDS[3])]
+
+def make_fragment(CDS_fragment_number):
+    #CDS_fragment_number : gene start, gene end, strand, fragment number, gene number
+    gff = []
+    fragment_start = 0
+    fragment_end = 0
+    if CDS_fragment_number[3] == 1:
+        return [[CDS_fragment_number[0], CDS_fragment_number[1], CDS_fragment_number[2], 'fragment 1/1', CDS_fragment_number[3]]]
+    else:
+        if CDS_fragment_number[2] == '+':
+            for i in range(CDS_fragment_number[3]-1):
+                fragment_start = CDS_fragment_number[0] + (100 * i)
+                fragment_end = CDS_fragment_number[0] + (100 * (i+1)) -1
+                count = i+1
+                gff.append([fragment_start, fragment_end, CDS_fragment_number[2], 'fragment ' + str(count) + '/' + str(CDS_fragment_number[3]), CDS_fragment_number[4]])
+            gff.append([CDS_fragment_number[0] + (100 * (CDS_fragment_number[3] -1)), CDS_fragment_number[1], CDS_fragment_number[2],'fragment ' + str(CDS_fragment_number[3]) + '/' + str(CDS_fragment_number[3]), CDS_fragment_number[4]])
+            return gff
+        else:
+            for i in range(CDS_fragment_number[3]-1):
+                fragment_end = CDS_fragment_number[1] - (100 * i)
+                fragment_start = CDS_fragment_number[1] - (100 * (i+1)) +1
+                count = i+1
+                gff.append([fragment_start, fragment_end, CDS_fragment_number[2], 'fragment ' + str(count) + '/' + str(CDS_fragment_number[3]), CDS_fragment_number[4]])
+            gff.append([CDS_fragment_number[0], CDS_fragment_number[1] - (100 * (CDS_fragment_number[3] -1)), CDS_fragment_number[2],'fragment ' + str(CDS_fragment_number[3]) + '/' + str(CDS_fragment_number[3]), CDS_fragment_number[4]])
+            return gff
+
+
+CDS_fragment_number_fwd = []
+CDS_list_fwd, CDS_list_rev = make_CDS_list("e.coli_CDS_list_(NC000913.3).txt")
+#print CDS_list_fwd
+for i in CDS_list_fwd:
+    CDS_fragment_number_fwd.append(fragment_number(i))
+#print CDS_fragment_number_fwd
+fragments_fwd = []
+for i in CDS_fragment_number_fwd:
+    fragments_fwd.append(make_fragment(i))
+#print fragments_fwd
+
+fwd = open("D:\\Python\\Codes\\output\\CDS_fragment_fwd.gff", 'w')
+for i in fragments_fwd:
+    for k in i:
+        j = str(k).split(',')
+        #print j
+        fwd.write('NC_000913.3\tDH\tCDS_fragment\t' + str(j[0])[1:] + '\t' + str(j[1])[1:] + '\t.\t+\t.\t' + j[3][2:-1] + '; Gene_number:' + j[4][:-1] + '\n')
+fwd.close()
+
+
+CDS_fragment_number_rev = []
+
+#print CDS_list_fwd
+for i in CDS_list_rev:
+    CDS_fragment_number_rev.append(fragment_number(i))
+#print CDS_fragment_number_rev[0:100]
+fragments_rev = []
+for i in CDS_fragment_number_rev:
+    fragments_rev.append(make_fragment(i))
+#print fragments_rev[0:1000]
+
+rev = open("D:\\Python\\Codes\\output\\CDS_fragment_rev.gff", 'w')
+for i in fragments_rev:
+    for k in i:
+        j = str(k).split(',')
+        rev.write('NC_000913.3\tDH\tCDS_fragment\t' + str(j[0])[1:] + '\t' + str(j[1]) + '\t.\t-\t.\t' + j[3][2:-1] + '; Gene_number:' + j[4][:-1]+ '\n')
+rev.close()
+
+t2 = time.time()
+
+print "Time spent: " + str(t2-t1)
